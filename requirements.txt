@@ -6,3 +6,4 @@ numpy==1.26.0
 pillow==10.1.0
 python-dotenv==1.0.0
 boto3
+certifi
