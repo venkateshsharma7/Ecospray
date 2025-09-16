@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>EcoSpray — Premium Dashboard</title>
+
+  <!-- Tailwind Play CDN for quick styling (no build step) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    /* extra small UI niceties */
+    .card { background: white; border-radius: 1rem; box-shadow: 0 8px 30px rgba(12,24,40,0.06); }
+    .muted { color: #64748b; } /* slate-500 */
+    .small-muted { color:#94a3b8; font-size:0.85rem; }
+    .prob-fill { background: linear-gradient(90deg,#16a34a,#0891b2); height: 0.6rem; border-radius: 999px; }
+    .dash-anim { transition: stroke-dashoffset .6s cubic-bezier(.2,.9,.2,1); }
+    .upload-drop { transition: background .15s, border-color .15s; }
+    .muted-2 { color: #475569; }
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-b from-white via-slate-50 to-slate-100 text-slate-900 antialiased">
+
+  <header class="max-w-6xl mx-auto px-6 py-6 flex items-center justify-between">
+  <div class="flex items-center gap-4">
+    <img src="{{ url_for('static', filename='logo.png') }}" 
+         alt="EcoSpray Logo" 
+         class="w-12 h-12 rounded-xl object-cover shadow-lg">
+    <div>
+      <div class="text-lg font-semibold">EcoSpray</div>
+      <div class="small-muted">Precision plant-health insights</div>
+    </div>
+  </div>
+  <!-- Removed Docs / Sign in as requested -->
+  <div></div>
+</header>
+
+
+  <main class="max-w-6xl mx-auto px-6 pb-12">
+    <div class="grid md:grid-cols-3 gap-6">
+
+      <!-- Main panel -->
+      <section class="md:col-span-2 card p-6">
+        <div class="flex items-start justify-between gap-6">
+          <div class="flex items-center gap-4">
+            <div class="w-28 h-28 flex items-center justify-center">
+              <!-- Circular progress (SVG) -->
+              <svg id="circle-svg" width="112" height="112" viewBox="0 0 112 112" class="-rotate-90">
+                <defs>
+                  <linearGradient id="g1" x1="0%" x2="100%"><stop offset="0%" stop-color="#06b6d4"/><stop offset="100%" stop-color="#0ea5a4"/></linearGradient>
+                </defs>
+                <circle cx="56" cy="56" r="44" stroke="#e6eef2" stroke-width="14" fill="none"></circle>
+                <circle id="progress-circle" cx="56" cy="56" r="44" stroke="url(#g1)" stroke-width="14" stroke-linecap="round" fill="none" stroke-dasharray="276.46" stroke-dashoffset="276.46" class="dash-anim"></circle>
+                <text id="circle-label" x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-size="18" font-weight="700" fill="#0f172a">0%</text>
+              </svg>
+            </div>
+
+            <div>
+              <div class="muted text-sm">Latest Severity</div>
+              <div id="latest-sev" class="text-2xl font-semibold">0%</div>
+              <div class="muted text-sm mt-1">Detected: <span id="latest-disease" class="font-medium">None</span></div>
+              <div class="small-muted mt-2" id="latest-ts">Updated: -</div>
+            </div>
+          </div>
+
+          <div class="w-72">
+            <div class="muted text-sm mb-2">Prediction probabilities</div>
+            <div id="prob-list" class="space-y-2">
+              <!-- JS fills -->
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-6 grid grid-cols-2 gap-4">
+          <div class="p-4 bg-slate-50 rounded-xl">
+            <div class="muted text-xs">Yellow (leaf spotting)</div>
+            <div id="percent-yellow" class="text-lg font-semibold">0%</div>
+          </div>
+          <div class="p-4 bg-slate-50 rounded-xl">
+            <div class="muted text-xs">Brown (necrosis)</div>
+            <div id="percent-brown" class="text-lg font-semibold">0%</div>
+          </div>
+        </div>
+
+        <div class="mt-6">
+          <div class="muted text-sm mb-2">Recent uploads</div>
+          <div id="recent-list" class="divide-y rounded-xl overflow-hidden border border-slate-100">
+            <div class="p-6 text-center text-slate-400">No uploads yet — upload an image</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Side panel -->
+      <aside class="card p-6 space-y-6">
+        <div>
+          <div class="muted text-sm mb-2">Quick actions</div>
+
+          <form id="uploadForm" class="space-y-4">
+            <div>
+              <div id="dropzone" class="upload-drop w-full cursor-pointer rounded-lg border border-dashed border-slate-200 p-4 text-center hover:bg-slate-50">
+                <input id="fileInput" name="image" type="file" accept="image/*" class="hidden" />
+                <div class="muted text-sm">Drag & drop or click to upload</div>
+              </div>
+            </div>
+
+            <div>
+              <button id="uploadBtn" type="submit" class="w-full py-2 rounded-lg bg-slate-900 text-white font-medium">Upload & Analyze</button>
+            </div>
+
+            <div id="upload-progress" class="hidden mt-2">
+              <div class="text-xs muted mb-1">Uploading: <span id="upload-pct">0%</span></div>
+              <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                <div id="upload-bar" class="prob-fill" style="width:0%"></div>
+              </div>
+            </div>
+
+            <div class="pt-3 border-t border-slate-100 mt-4">
+              <div class="muted text-xs">Statistics</div>
+              <div class="mt-2 grid grid-cols-2 gap-2">
+                <div class="bg-slate-50 p-3 rounded-md text-center">
+                  <div class="muted text-xs">Total</div>
+                  <div id="stat-total" class="text-lg font-semibold">0</div>
+                </div>
+                <div class="bg-slate-50 p-3 rounded-md text-center">
+                  <div class="muted text-xs">Avg Severity</div>
+                  <div id="stat-avg" class="text-lg font-semibold">0%</div>
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <!-- Pesticide calculator (new) -->
+        <div class="border-t pt-4">
+          <div class="text-sm font-medium">Pesticide Recommendation</div>
+          <div class="muted text-xs mt-1">Get recommended spray volume and pesticide amount based on severity.</div>
+
+          <div class="mt-3 grid grid-cols-1 gap-2">
+            <label class="text-xs muted">Area to spray (m²)</label>
+            <input id="areaInput" type="number" min="1" value="100" class="w-full border rounded-md p-2" />
+
+            <label class="text-xs muted">Application mode</label>
+            <select id="appMode" class="w-full border rounded-md p-2">
+              <option value="knapsack">Knapsack (15 L)</option>
+              <option value="sprayer">Power sprayer</option>
+            </select>
+
+            <div class="p-3 bg-slate-50 rounded-md">
+              <div class="text-xs muted">Severity tier</div>
+              <div id="pest-tier" class="text-lg font-semibold">-</div>
+              <div id="pest-reco" class="muted-2 mt-2">-</div>
+            </div>
+
+            <div class="p-3 bg-white rounded-md border">
+              <div class="text-xs muted mb-1">Recommended spray water (liters)</div>
+              <div id="reco-water" class="text-lg font-semibold">- L</div>
+              <div class="text-xs muted mt-2">Recommended pesticide concentrate</div>
+              <div id="reco-dose" class="text-lg font-semibold">- ml per L</div>
+              <div class="text-xs muted mt-2">Total pesticide required</div>
+              <div id="reco-total" class="text-lg font-semibold">- ml</div>
+              <div class="text-xs muted mt-2">Estimated knapsack fills</div>
+              <div id="reco-fills" class="text-lg font-semibold">- tanks (15 L)</div>
+            </div>
+
+            <div class="text-xs small-muted">Note: Recommendations are heuristic. Always follow the product label and local guidelines. Wear PPE and consult local extension services for crop- and product-specific instructions.</div>
+          </div>
+        </div>
+
+      </aside>
+    </div>
+  </main>
+
+  <footer class="max-w-6xl mx-auto px-6 py-6 text-center text-xs text-slate-400">© <span id="year"></span> EcoSpray — Hack2Heal</footer>
+
+<script>
+/* ---- Config ---- */
+const POLL_MS = 3000;
+document.getElementById('year').innerText = new Date().getFullYear();
+
+/* ---- Circle progress variables ---- */
+const circle = document.getElementById('progress-circle');
+const circleLabel = document.getElementById('circle-label');
+const R = 44; // radius used in svg
+const C = 2 * Math.PI * R;
+circle.style.strokeDasharray = C;
+circle.style.strokeDashoffset = C;
+
+function setCircleProgress(pct) {
+  const clamped = Math.max(0, Math.min(100, Number(pct) || 0));
+  const offset = C - (clamped / 100) * C;
+  circle.style.strokeDashoffset = offset;
+  circleLabel.textContent = clamped + '%';
+  document.getElementById('latest-sev').textContent = clamped + '%';
+}
+
+/* ---- UI update functions ---- */
+function renderProbList(probObj = {}) {
+  const container = document.getElementById('prob-list');
+  container.innerHTML = '';
+  const defaultLabels = ['Blight','Mildew','Rust','Healthy'];
+  const entries = Object.keys(probObj).length ? Object.entries(probObj) : defaultLabels.map(l => [l,0]);
+  entries.sort((a,b) => b[1]-a[1]);
+  entries.forEach(([label, val]) => {
+    const row = document.createElement('div');
+    row.className = 'flex items-center gap-3';
+    row.innerHTML = `
+      <div class="w-28 text-sm muted">${label}</div>
+      <div class="flex-1 bg-slate-100 rounded-full h-3 overflow-hidden">
+        <div style="width:${val}%" class="prob-fill"></div>
+      </div>
+      <div class="w-12 text-right text-sm font-medium">${val}%</div>
+    `;
+    container.appendChild(row);
+  });
+}
+
+function renderRecent(results = []) {
+  const container = document.getElementById('recent-list');
+  container.innerHTML = '';
+  if (!results.length) {
+    container.innerHTML = '<div class="p-6 text-center text-slate-400">No uploads yet — upload an image</div>';
+    return;
+  }
+  results.forEach(r => {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'p-4 flex items-center justify-between bg-white';
+    const fname = r.filename || 'file';
+    wrapper.innerHTML = `
+      <div class="flex items-center gap-4">
+        <img src="/uploads/${fname}" onerror="this.style.display='none'" class="w-12 h-12 rounded-md object-cover border" />
+        <div>
+          <div class="text-sm font-medium">${fname}</div>
+          <div class="text-xs muted">${r.timestamp || '-'}</div>
+        </div>
+      </div>
+      <div class="text-right">
+        <div class="text-sm font-semibold">${r.severity}%</div>
+        <div class="text-xs muted">${r.disease}</div>
+      </div>
+    `;
+    container.appendChild(wrapper);
+  });
+}
+
+/* ---- Fetching endpoints ---- */
+async function fetchLatest() {
+  try {
+    const res = await fetch('/latest-severity');
+    if (!res.ok) return;
+    const j = await res.json();
+    setCircleProgress(j.severity ?? 0);
+    document.getElementById('latest-disease').textContent = j.disease ?? 'None';
+    document.getElementById('latest-ts').textContent = 'Updated: ' + (j.timestamp ?? '-');
+    document.getElementById('percent-yellow').textContent = (j.percent_yellow ?? 0) + '%';
+    document.getElementById('percent-brown').textContent = (j.percent_brown ?? 0) + '%';
+    renderProbList(j.probabilities ?? {});
+    // update pesticide recommendation now that latest severity changed
+    updatePesticideRecommendation(j.severity ?? 0);
+  } catch (e) {
+    console.warn('fetchLatest err', e);
+  }
+}
+
+async function fetchStats() {
+  try {
+    const res = await fetch('/stats');
+    if (!res.ok) return;
+    const j = await res.json();
+    document.getElementById('stat-total').textContent = j.total_uploads ?? 0;
+    document.getElementById('stat-avg').textContent = (j.avg_severity ?? 0) + '%';
+  } catch (e) {
+    console.warn('fetchStats err', e);
+  }
+}
+
+async function fetchHistory() {
+  try {
+    const res = await fetch('/history?n=8');
+    if (!res.ok) return;
+    const j = await res.json();
+    renderRecent(j.results || []);
+  } catch (e) {
+    console.warn('fetchHistory err', e);
+  }
+}
+
+/* initial load and polling */
+fetchLatest(); fetchStats(); fetchHistory();
+setInterval(() => { fetchLatest(); fetchStats(); fetchHistory(); }, POLL_MS);
+
+/* ---- Upload (drag & drop + progress) ---- */
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const uploadForm = document.getElementById('uploadForm');
+const uploadProgress = document.getElementById('upload-progress');
+const uploadBar = document.getElementById('upload-bar');
+const uploadPct = document.getElementById('upload-pct');
+
+// fileSelect via clicking dropzone
+dropzone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => {
+  if (fileInput.files.length) dropzone.classList.add('border-emerald-300');
+});
+
+// drag/drop visual
+['dragenter','dragover'].forEach(ev => {
+  dropzone.addEventListener(ev, (e) => {
+    e.preventDefault(); e.stopPropagation();
+    dropzone.classList.add('bg-slate-50', 'border-slate-300');
+  });
+});
+['dragleave','drop'].forEach(ev => {
+  dropzone.addEventListener(ev, (e) => {
+    e.preventDefault(); e.stopPropagation();
+    dropzone.classList.remove('bg-slate-50', 'border-slate-300');
+  });
+});
+dropzone.addEventListener('drop', (e) => {
+  const dt = e.dataTransfer;
+  if (!dt) return;
+  const files = dt.files;
+  if (files && files[0]) {
+    fileInput.files = files;
+  }
+});
+
+/* submit handler with XMLHttpRequest for progress */
+uploadForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  if (!fileInput.files || !fileInput.files[0]) {
+    alert('Choose an image to upload');
+    return;
+  }
+  const file = fileInput.files[0];
+  const allowed = ['png','jpg','jpeg','bmp','tiff','webp'];
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  if (!allowed.includes(ext)) {
+    alert('File type not allowed. Allowed: ' + allowed.join(','));
+    return;
+  }
+
+  const form = new FormData();
+  form.append('image', file);
+
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', '/upload', true);
+
+  xhr.upload.onprogress = (ev) => {
+    if (ev.lengthComputable) {
+      const pct = Math.round((ev.loaded / ev.total) * 100);
+      uploadProgress.classList.remove('hidden');
+      uploadBar.style.width = pct + '%';
+      uploadPct.textContent = pct + '%';
+    }
+  };
+
+  xhr.onload = function() {
+    uploadProgress.classList.add('hidden');
+    uploadBar.style.width = '0%';
+    uploadPct.textContent = '0%';
+    if (xhr.status >= 200 && xhr.status < 300) {
+      try { const j = JSON.parse(xhr.responseText); console.log('upload ok', j); } catch(e){}
+      fileInput.value = '';
+      fetchLatest(); fetchStats(); fetchHistory();
+      alert('Upload successful');
+    } else {
+      let msg = 'Upload failed';
+      try { msg = JSON.parse(xhr.responseText).error || xhr.responseText; } catch(e){}
+      alert('Upload error: ' + msg);
+    }
+  };
+
+  xhr.onerror = function() {
+    uploadProgress.classList.add('hidden');
+    alert('Upload failed due to network error');
+  };
+
+  xhr.send(form);
+});
+
+/* ---- Pesticide recommendation logic ---- */
+function getPesticidePlan(severity) {
+  // Return a heuristic plan object {tier, water_l_per_ha_range, dose_ml_per_l_range}
+  // All numbers are conservative ranges. Always follow product label.
+  const s = Number(severity) || 0;
+  if (s <= 10) {
+    return {
+      tier: 'Healthy / Monitor',
+      summary: 'No pesticide required. Monitor and use biological measures (e.g., neem, Trichoderma).',
+      water_l_per_ha: [100, 300], // light monitoring spray
+      dose_ml_per_l: [0, 0]
+    };
+  } else if (s <= 30) {
+    return {
+      tier: 'Low (Preventive)',
+      summary: 'Preventive/light fungicide application recommended.',
+      water_l_per_ha: [200, 400],
+      dose_ml_per_l: [0.5, 1.0] // ml per liter (0.05% - 0.10%)
+    };
+  } else if (s <= 60) {
+    return {
+      tier: 'Moderate (Treat)',
+      summary: 'Curative fungicide application recommended; follow label.',
+      water_l_per_ha: [300, 600],
+      dose_ml_per_l: [1.0, 2.0] // ml per liter (0.10% - 0.20%)
+    };
+  } else {
+    return {
+      tier: 'Severe (Intensive)',
+      summary: 'High severity — apply recommended curative product and consider integrated measures / expert advice.',
+      water_l_per_ha: [400, 800],
+      dose_ml_per_l: [2.0, 5.0] // ml per liter (0.20% - 0.50%)
+    };
+  }
+}
+
+function updatePesticideRecommendation(severity) {
+  const plan = getPesticidePlan(severity);
+  document.getElementById('pest-tier').textContent = plan.tier;
+  document.getElementById('pest-reco').textContent = plan.summary;
+
+  // compute numbers based on user area
+  const area = Math.max(1, Number(document.getElementById('areaInput').value) || 100); // m^2
+  // convert to hectares: 1 ha = 10000 m^2
+  const ha = area / 10000.0;
+
+  // pick midpoints for display
+  const water_min = plan.water_l_per_ha[0] * ha;
+  const water_max = plan.water_l_per_ha[1] * ha;
+  const dose_min = plan.dose_ml_per_l[0];
+  const dose_max = plan.dose_ml_per_l[1];
+
+  // choose representative values (midpoints) for totals
+  const water_mid = (water_min + water_max) / 2.0;
+  const dose_mid = (dose_min + dose_max) / 2.0;
+
+  // total pesticide (ml) = water_mid (L) * dose_ml_per_L
+  const total_pesticide_ml_min = water_min * dose_min;
+  const total_pesticide_ml_max = water_max * dose_max;
+  const total_pesticide_ml_mid = water_mid * dose_mid;
+
+  // knapsack fills (15 L) approximate
+  const appMode = document.getElementById('appMode').value;
+  const tank_vol = appMode === 'knapsack' ? 15 : 200; // 15L knapsack or 200L sprayer as example
+  const fills = Math.max(1, Math.ceil(water_mid / tank_vol));
+
+  // display
+  document.getElementById('reco-water').textContent = `${round2(water_min)} – ${round2(water_max)} L`;
+  document.getElementById('reco-dose').textContent = (dose_min === 0 && dose_max === 0) ? '—' : `${dose_min} – ${dose_max} ml per L`;
+  document.getElementById('reco-total').textContent = (dose_min===0 && dose_max===0) ? '—' : `${round2(total_pesticide_ml_min)} – ${round2(total_pesticide_ml_max)} ml (≈ ${round2(total_pesticide_ml_mid)} ml)`;
+  document.getElementById('reco-fills').textContent = `${fills} x ${tank_vol} L`;
+}
+
+function round2(x) { return Math.round(x * 100) / 100; }
+
+// update pesticide when area or mode changes
+document.getElementById('areaInput').addEventListener('input', () => {
+  // use current displayed severity
+  const sevText = document.getElementById('latest-sev').textContent.replace('%','') || '0';
+  updatePesticideRecommendation(Number(sevText));
+});
+document.getElementById('appMode').addEventListener('change', () => {
+  const sevText = document.getElementById('latest-sev').textContent.replace('%','') || '0';
+  updatePesticideRecommendation(Number(sevText));
+});
+
+</script>
+</body>
+</html>
