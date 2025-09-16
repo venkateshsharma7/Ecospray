@@ -8,6 +8,7 @@
   <!-- Tailwind Play CDN for quick styling (no build step) -->
   <script src="https://cdn.tailwindcss.com"></script>
 
+  <meta name="theme-color" content="#0f172a" />
   <style>
     /* extra small UI niceties */
     .card { background: white; border-radius: 1rem; box-shadow: 0 8px 30px rgba(12,24,40,0.06); }
@@ -17,24 +18,26 @@
     .dash-anim { transition: stroke-dashoffset .6s cubic-bezier(.2,.9,.2,1); }
     .upload-drop { transition: background .15s, border-color .15s; }
     .muted-2 { color: #475569; }
+    /* minor responsive tweak */
+    @media (max-width: 640px) {
+      .w-72 { width: 18rem; }
+    }
   </style>
 </head>
 <body class="min-h-screen bg-gradient-to-b from-white via-slate-50 to-slate-100 text-slate-900 antialiased">
 
   <header class="max-w-6xl mx-auto px-6 py-6 flex items-center justify-between">
-  <div class="flex items-center gap-4">
-    <img src="{{ url_for('static', filename='logo.png') }}" 
-         alt="EcoSpray Logo" 
-         class="w-12 h-12 rounded-xl object-cover shadow-lg">
-    <div>
-      <div class="text-lg font-semibold">EcoSpray</div>
-      <div class="small-muted">Precision plant-health insights</div>
+    <div class="flex items-center gap-4">
+      <img src="{{ url_for('static', filename='logo.png') }}"
+           alt="EcoSpray Logo"
+           class="w-12 h-12 rounded-xl object-cover shadow-lg">
+      <div>
+        <div class="text-lg font-semibold">EcoSpray</div>
+        <div class="small-muted">Precision plant-health insights</div>
+      </div>
     </div>
-  </div>
-  <!-- Removed Docs / Sign in as requested -->
-  <div></div>
-</header>
-
+    <div></div>
+  </header>
 
   <main class="max-w-6xl mx-auto px-6 pb-12">
     <div class="grid md:grid-cols-3 gap-6">
@@ -43,9 +46,9 @@
       <section class="md:col-span-2 card p-6">
         <div class="flex items-start justify-between gap-6">
           <div class="flex items-center gap-4">
-            <div class="w-28 h-28 flex items-center justify-center">
+            <div class="w-28 h-28 flex items-center justify-center" aria-hidden="true">
               <!-- Circular progress (SVG) -->
-              <svg id="circle-svg" width="112" height="112" viewBox="0 0 112 112" class="-rotate-90">
+              <svg id="circle-svg" width="112" height="112" viewBox="0 0 112 112" class="-rotate-90" role="img" aria-label="Severity">
                 <defs>
                   <linearGradient id="g1" x1="0%" x2="100%"><stop offset="0%" stop-color="#06b6d4"/><stop offset="100%" stop-color="#0ea5a4"/></linearGradient>
                 </defs>
@@ -65,7 +68,7 @@
 
           <div class="w-72">
             <div class="muted text-sm mb-2">Prediction probabilities</div>
-            <div id="prob-list" class="space-y-2">
+            <div id="prob-list" class="space-y-2" aria-live="polite">
               <!-- JS fills -->
             </div>
           </div>
@@ -84,21 +87,21 @@
 
         <div class="mt-6">
           <div class="muted text-sm mb-2">Recent uploads</div>
-          <div id="recent-list" class="divide-y rounded-xl overflow-hidden border border-slate-100">
+          <div id="recent-list" class="divide-y rounded-xl overflow-hidden border border-slate-100" aria-live="polite">
             <div class="p-6 text-center text-slate-400">No uploads yet — upload an image</div>
           </div>
         </div>
       </section>
 
       <!-- Side panel -->
-      <aside class="card p-6 space-y-6">
+      <aside class="card p-6 space-y-6" aria-label="Controls">
         <div>
           <div class="muted text-sm mb-2">Quick actions</div>
 
-          <form id="uploadForm" class="space-y-4">
+          <form id="uploadForm" class="space-y-4" aria-label="Upload form">
             <div>
-              <div id="dropzone" class="upload-drop w-full cursor-pointer rounded-lg border border-dashed border-slate-200 p-4 text-center hover:bg-slate-50">
-                <input id="fileInput" name="image" type="file" accept="image/*" class="hidden" />
+              <div id="dropzone" class="upload-drop w-full cursor-pointer rounded-lg border border-dashed border-slate-200 p-4 text-center hover:bg-slate-50" role="button" tabindex="0">
+                <input id="fileInput" name="image" type="file" accept="image/*" class="hidden" aria-hidden="true" />
                 <div class="muted text-sm">Drag & drop or click to upload</div>
               </div>
             </div>
@@ -107,7 +110,7 @@
               <button id="uploadBtn" type="submit" class="w-full py-2 rounded-lg bg-slate-900 text-white font-medium">Upload & Analyze</button>
             </div>
 
-            <div id="upload-progress" class="hidden mt-2">
+            <div id="upload-progress" class="hidden mt-2" aria-hidden="true">
               <div class="text-xs muted mb-1">Uploading: <span id="upload-pct">0%</span></div>
               <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                 <div id="upload-bar" class="prob-fill" style="width:0%"></div>
@@ -136,10 +139,10 @@
           <div class="muted text-xs mt-1">Get recommended spray volume and pesticide amount based on severity.</div>
 
           <div class="mt-3 grid grid-cols-1 gap-2">
-            <label class="text-xs muted">Area to spray (m²)</label>
+            <label class="text-xs muted" for="areaInput">Area to spray (m²)</label>
             <input id="areaInput" type="number" min="1" value="100" class="w-full border rounded-md p-2" />
 
-            <label class="text-xs muted">Application mode</label>
+            <label class="text-xs muted" for="appMode">Application mode</label>
             <select id="appMode" class="w-full border rounded-md p-2">
               <option value="knapsack">Knapsack (15 L)</option>
               <option value="sprayer">Power sprayer</option>
@@ -174,7 +177,8 @@
 
 <script>
 /* ---- Config ---- */
-const POLL_MS = 3000;
+/* Poll frequency: single combined endpoint (server caches results). Adjust as needed. */
+const POLL_MS = 10000;
 document.getElementById('year').innerText = new Date().getFullYear();
 
 /* ---- Circle progress variables ---- */
@@ -182,15 +186,18 @@ const circle = document.getElementById('progress-circle');
 const circleLabel = document.getElementById('circle-label');
 const R = 44; // radius used in svg
 const C = 2 * Math.PI * R;
-circle.style.strokeDasharray = C;
-circle.style.strokeDashoffset = C;
+if (circle) {
+  circle.style.strokeDasharray = C;
+  circle.style.strokeDashoffset = C;
+}
 
 function setCircleProgress(pct) {
   const clamped = Math.max(0, Math.min(100, Number(pct) || 0));
   const offset = C - (clamped / 100) * C;
-  circle.style.strokeDashoffset = offset;
-  circleLabel.textContent = clamped + '%';
-  document.getElementById('latest-sev').textContent = clamped + '%';
+  if (circle) circle.style.strokeDashoffset = offset;
+  if (circleLabel) circleLabel.textContent = clamped + '%';
+  const sevEl = document.getElementById('latest-sev');
+  if (sevEl) sevEl.textContent = clamped + '%';
 }
 
 /* ---- UI update functions ---- */
@@ -206,7 +213,7 @@ function renderProbList(probObj = {}) {
     row.innerHTML = `
       <div class="w-28 text-sm muted">${label}</div>
       <div class="flex-1 bg-slate-100 rounded-full h-3 overflow-hidden">
-        <div style="width:${val}%" class="prob-fill"></div>
+        <div style="width:${val}%" class="prob-fill" aria-hidden="true"></div>
       </div>
       <div class="w-12 text-right text-sm font-medium">${val}%</div>
     `;
@@ -217,7 +224,7 @@ function renderProbList(probObj = {}) {
 function renderRecent(results = []) {
   const container = document.getElementById('recent-list');
   container.innerHTML = '';
-  if (!results.length) {
+  if (!results || !results.length) {
     container.innerHTML = '<div class="p-6 text-center text-slate-400">No uploads yet — upload an image</div>';
     return;
   }
@@ -227,7 +234,7 @@ function renderRecent(results = []) {
     const fname = r.filename || 'file';
     wrapper.innerHTML = `
       <div class="flex items-center gap-4">
-        <img src="/uploads/${fname}" onerror="this.style.display='none'" class="w-12 h-12 rounded-md object-cover border" />
+        <img src="/uploads/${fname}" onerror="this.style.display='none'" class="w-12 h-12 rounded-md object-cover border" alt="${fname}" />
         <div>
           <div class="text-sm font-medium">${fname}</div>
           <div class="text-xs muted">${r.timestamp || '-'}</div>
@@ -242,51 +249,57 @@ function renderRecent(results = []) {
   });
 }
 
-/* ---- Fetching endpoints ---- */
-async function fetchLatest() {
+/* ---- Combined dashboard fetch (single request) ---- */
+async function fetchDashboard() {
   try {
-    const res = await fetch('/latest-severity');
-    if (!res.ok) return;
+    const res = await fetch('/dashboard-data');
+    if (!res.ok) {
+      console.warn('dashboard-data not ok', res.status);
+      return;
+    }
     const j = await res.json();
-    setCircleProgress(j.severity ?? 0);
-    document.getElementById('latest-disease').textContent = j.disease ?? 'None';
-    document.getElementById('latest-ts').textContent = 'Updated: ' + (j.timestamp ?? '-');
-    document.getElementById('percent-yellow').textContent = (j.percent_yellow ?? 0) + '%';
-    document.getElementById('percent-brown').textContent = (j.percent_brown ?? 0) + '%';
-    renderProbList(j.probabilities ?? {});
-    // update pesticide recommendation now that latest severity changed
-    updatePesticideRecommendation(j.severity ?? 0);
+    const latest = j.latest || {};
+
+    // latest panel
+    setCircleProgress(latest.severity ?? 0);
+    const diseaseEl = document.getElementById('latest-disease');
+    if (diseaseEl) diseaseEl.textContent = latest.disease ?? 'None';
+    const tsEl = document.getElementById('latest-ts');
+    if (tsEl) tsEl.textContent = 'Updated: ' + (latest.timestamp ?? '-');
+    const pyEl = document.getElementById('percent-yellow');
+    if (pyEl) pyEl.textContent = (latest.percent_yellow ?? 0) + '%';
+    const pbEl = document.getElementById('percent-brown');
+    if (pbEl) pbEl.textContent = (latest.percent_brown ?? 0) + '%';
+    renderProbList(latest.probabilities ?? {});
+
+    // stats
+    const totalEl = document.getElementById('stat-total');
+    if (totalEl) totalEl.textContent = (j.stats?.total_uploads ?? 0);
+    const avgEl = document.getElementById('stat-avg');
+    if (avgEl) avgEl.textContent = (j.stats?.avg_severity ?? 0) + '%';
+
+    // history
+    renderRecent(j.history || []);
+
+    // If server stored pesticide recommendation with last_result, show default values
+    if (latest.pesticide_recommendation) {
+      const p = latest.pesticide_recommendation;
+      document.getElementById('pest-tier').textContent = p.tier || '-';
+      document.getElementById('pest-reco').textContent = p.summary || '-';
+      document.getElementById('reco-water').textContent = `${p.water_l_min} – ${p.water_l_max} L`;
+      document.getElementById('reco-dose').textContent = (p.dose_ml_per_l_min === 0 && p.dose_ml_per_l_max === 0) ? '—' : `${p.dose_ml_per_l_min} – ${p.dose_ml_per_l_max} ml per L`;
+      document.getElementById('reco-total').textContent = (p.total_pesticide_ml_min === 0 && p.total_pesticide_ml_max === 0) ? '—' : `${p.total_pesticide_ml_min} – ${p.total_pesticide_ml_max} ml (≈ ${p.total_pesticide_ml_mid} ml)`;
+      document.getElementById('reco-fills').textContent = `${p.estimated_tank_fills} x ${p.tank_volume_l} L`;
+    }
+
   } catch (e) {
-    console.warn('fetchLatest err', e);
+    console.warn('fetchDashboard err', e);
   }
 }
 
-async function fetchStats() {
-  try {
-    const res = await fetch('/stats');
-    if (!res.ok) return;
-    const j = await res.json();
-    document.getElementById('stat-total').textContent = j.total_uploads ?? 0;
-    document.getElementById('stat-avg').textContent = (j.avg_severity ?? 0) + '%';
-  } catch (e) {
-    console.warn('fetchStats err', e);
-  }
-}
-
-async function fetchHistory() {
-  try {
-    const res = await fetch('/history?n=8');
-    if (!res.ok) return;
-    const j = await res.json();
-    renderRecent(j.results || []);
-  } catch (e) {
-    console.warn('fetchHistory err', e);
-  }
-}
-
-/* initial load and polling */
-fetchLatest(); fetchStats(); fetchHistory();
-setInterval(() => { fetchLatest(); fetchStats(); fetchHistory(); }, POLL_MS);
+/* initial load and polling (single request) */
+fetchDashboard();
+setInterval(fetchDashboard, POLL_MS);
 
 /* ---- Upload (drag & drop + progress) ---- */
 const dropzone = document.getElementById('dropzone');
@@ -296,11 +309,17 @@ const uploadProgress = document.getElementById('upload-progress');
 const uploadBar = document.getElementById('upload-bar');
 const uploadPct = document.getElementById('upload-pct');
 
-// fileSelect via clicking dropzone
-dropzone.addEventListener('click', () => fileInput.click());
-fileInput.addEventListener('change', () => {
-  if (fileInput.files.length) dropzone.classList.add('border-emerald-300');
-});
+if (dropzone) {
+  // fileSelect via clicking dropzone
+  dropzone.addEventListener('click', () => fileInput.click());
+  dropzone.addEventListener('keyup', (e) => { if (e.key === 'Enter' || e.key === ' ') fileInput.click(); });
+}
+
+if (fileInput) {
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length) dropzone.classList.add('border-emerald-300');
+  });
+}
 
 // drag/drop visual
 ['dragenter','dragover'].forEach(ev => {
@@ -342,6 +361,12 @@ uploadForm.addEventListener('submit', (e) => {
   const form = new FormData();
   form.append('image', file);
 
+  // include user-selected area/mode so server stores pesticide recommendation with the record
+  const areaVal = Number(document.getElementById('areaInput').value) || 100;
+  const modeVal = document.getElementById('appMode').value || 'knapsack';
+  form.append('area', areaVal);
+  form.append('mode', modeVal);
+
   const xhr = new XMLHttpRequest();
   xhr.open('POST', '/upload', true);
 
@@ -361,7 +386,8 @@ uploadForm.addEventListener('submit', (e) => {
     if (xhr.status >= 200 && xhr.status < 300) {
       try { const j = JSON.parse(xhr.responseText); console.log('upload ok', j); } catch(e){}
       fileInput.value = '';
-      fetchLatest(); fetchStats(); fetchHistory();
+      // refresh dashboard once (server clears cache on upload)
+      fetchDashboard();
       alert('Upload successful');
     } else {
       let msg = 'Upload failed';
@@ -378,91 +404,33 @@ uploadForm.addEventListener('submit', (e) => {
   xhr.send(form);
 });
 
-/* ---- Pesticide recommendation logic ---- */
-function getPesticidePlan(severity) {
-  // Return a heuristic plan object {tier, water_l_per_ha_range, dose_ml_per_l_range}
-  // All numbers are conservative ranges. Always follow product label.
-  const s = Number(severity) || 0;
-  if (s <= 10) {
-    return {
-      tier: 'Healthy / Monitor',
-      summary: 'No pesticide required. Monitor and use biological measures (e.g., neem, Trichoderma).',
-      water_l_per_ha: [100, 300], // light monitoring spray
-      dose_ml_per_l: [0, 0]
-    };
-  } else if (s <= 30) {
-    return {
-      tier: 'Low (Preventive)',
-      summary: 'Preventive/light fungicide application recommended.',
-      water_l_per_ha: [200, 400],
-      dose_ml_per_l: [0.5, 1.0] // ml per liter (0.05% - 0.10%)
-    };
-  } else if (s <= 60) {
-    return {
-      tier: 'Moderate (Treat)',
-      summary: 'Curative fungicide application recommended; follow label.',
-      water_l_per_ha: [300, 600],
-      dose_ml_per_l: [1.0, 2.0] // ml per liter (0.10% - 0.20%)
-    };
-  } else {
-    return {
-      tier: 'Severe (Intensive)',
-      summary: 'High severity — apply recommended curative product and consider integrated measures / expert advice.',
-      water_l_per_ha: [400, 800],
-      dose_ml_per_l: [2.0, 5.0] // ml per liter (0.20% - 0.50%)
-    };
-  }
-}
-
-function updatePesticideRecommendation(severity) {
-  const plan = getPesticidePlan(severity);
-  document.getElementById('pest-tier').textContent = plan.tier;
-  document.getElementById('pest-reco').textContent = plan.summary;
-
-  // compute numbers based on user area
-  const area = Math.max(1, Number(document.getElementById('areaInput').value) || 100); // m^2
-  // convert to hectares: 1 ha = 10000 m^2
-  const ha = area / 10000.0;
-
-  // pick midpoints for display
-  const water_min = plan.water_l_per_ha[0] * ha;
-  const water_max = plan.water_l_per_ha[1] * ha;
-  const dose_min = plan.dose_ml_per_l[0];
-  const dose_max = plan.dose_ml_per_l[1];
-
-  // choose representative values (midpoints) for totals
-  const water_mid = (water_min + water_max) / 2.0;
-  const dose_mid = (dose_min + dose_max) / 2.0;
-
-  // total pesticide (ml) = water_mid (L) * dose_ml_per_L
-  const total_pesticide_ml_min = water_min * dose_min;
-  const total_pesticide_ml_max = water_max * dose_max;
-  const total_pesticide_ml_mid = water_mid * dose_mid;
-
-  // knapsack fills (15 L) approximate
-  const appMode = document.getElementById('appMode').value;
-  const tank_vol = appMode === 'knapsack' ? 15 : 200; // 15L knapsack or 200L sprayer as example
-  const fills = Math.max(1, Math.ceil(water_mid / tank_vol));
-
-  // display
-  document.getElementById('reco-water').textContent = `${round2(water_min)} – ${round2(water_max)} L`;
-  document.getElementById('reco-dose').textContent = (dose_min === 0 && dose_max === 0) ? '—' : `${dose_min} – ${dose_max} ml per L`;
-  document.getElementById('reco-total').textContent = (dose_min===0 && dose_max===0) ? '—' : `${round2(total_pesticide_ml_min)} – ${round2(total_pesticide_ml_max)} ml (≈ ${round2(total_pesticide_ml_mid)} ml)`;
-  document.getElementById('reco-fills').textContent = `${fills} x ${tank_vol} L`;
-}
-
+/* ---- Pesticide recommendation (ask server for precise numbers) ---- */
 function round2(x) { return Math.round(x * 100) / 100; }
 
-// update pesticide when area or mode changes
-document.getElementById('areaInput').addEventListener('input', () => {
-  // use current displayed severity
-  const sevText = document.getElementById('latest-sev').textContent.replace('%','') || '0';
-  updatePesticideRecommendation(Number(sevText));
-});
-document.getElementById('appMode').addEventListener('change', () => {
-  const sevText = document.getElementById('latest-sev').textContent.replace('%','') || '0';
-  updatePesticideRecommendation(Number(sevText));
-});
+function updatePesticideRecommendationFromUI() {
+  const area = Math.max(1, Number(document.getElementById('areaInput').value) || 100);
+  const mode = document.getElementById('appMode').value || 'knapsack';
+  // ask server using current latest severity
+  fetch(`/pesticide-recommendation?area=${encodeURIComponent(area)}&mode=${encodeURIComponent(mode)}`)
+    .then(r => r.json())
+    .then(j => {
+      const p = j.pesticide_recommendation || j.pesticide_recommendation || j;
+      if (!p) return;
+      document.getElementById('pest-tier').textContent = p.tier || '-';
+      document.getElementById('pest-reco').textContent = p.summary || '-';
+      document.getElementById('reco-water').textContent = `${p.water_l_min} – ${p.water_l_max} L`;
+      document.getElementById('reco-dose').textContent = (p.dose_ml_per_l_min === 0 && p.dose_ml_per_l_max === 0) ? '—' : `${p.dose_ml_per_l_min} – ${p.dose_ml_per_l_max} ml per L`;
+      document.getElementById('reco-total').textContent = (p.total_pesticide_ml_min === 0 && p.total_pesticide_ml_max === 0) ? '—' : `${p.total_pesticide_ml_min} – ${p.total_pesticide_ml_max} ml (≈ ${p.total_pesticide_ml_mid} ml)`;
+      document.getElementById('reco-fills').textContent = `${p.estimated_tank_fills} x ${p.tank_volume_l} L`;
+    }).catch(e => console.warn('pesticide reco err', e));
+}
+
+// wire UI inputs to server recommendation call
+document.getElementById('areaInput').addEventListener('input', () => { updatePesticideRecommendationFromUI(); });
+document.getElementById('appMode').addEventListener('change', () => { updatePesticideRecommendationFromUI(); });
+
+// initial pesticide calculation using current latest severity (server-driven default)
+updatePesticideRecommendationFromUI();
 
 </script>
 </body>

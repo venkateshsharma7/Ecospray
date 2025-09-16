@@ -7,6 +7,8 @@ import cv2
 import numpy as np
 from PIL import Image
 import math
+import time
+from threading import Lock
 from urllib.parse import quote_plus
 
 # Optional pymongo
@@ -24,8 +26,10 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'bmp', 'tiff', 'webp'}
 MAX_CONTENT_LENGTH = 10 * 1024 * 1024  # 10 MB
 
-# Use your provided URI directly
-MONGO_URI = os.environ.get('MONGO_URI', 'mongodb+srv://...')
+# Keep MONGO_URI in env for safety; fallback if needed
+MONGO_URI = os.environ.get('MONGO_URI',
+    'mongodb+srv://venkateshsharma:Vvs%402005@cluster0.ie4uxy6.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0'
+)
 
 app = Flask(__name__, template_folder='templates')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -262,6 +266,46 @@ last_result = {
     "pesticide_recommendation": None
 }
 
+# ----- Dashboard cache (single endpoint) -----
+_dashboard_cache = {"ts": 0, "data": None}
+_dashboard_lock = Lock()
+DASHBOARD_TTL = 10  # seconds
+
+@app.route('/dashboard-data', methods=['GET'])
+def dashboard_data():
+    now = time.time()
+    with _dashboard_lock:
+        if _dashboard_cache["data"] and now - _dashboard_cache["ts"] < DASHBOARD_TTL:
+            return jsonify(_dashboard_cache["data"])
+        # latest
+        latest = last_result.copy()
+        # stats
+        try:
+            if use_mongo and collection is not None:
+                total_uploads = int(collection.count_documents({}))
+                avg = 0.0
+                if total_uploads > 0:
+                    agg = list(collection.aggregate([{"$group": {"_id": None, "avgSeverity": {"$avg": "$severity"}}}]))
+                    avg = round(float(agg[0]['avgSeverity']) if agg else 0.0, 2)
+            else:
+                total_uploads = len(in_memory_data)
+                avg = round(sum(d['severity'] for d in in_memory_data) / total_uploads, 2) if total_uploads > 0 else 0.0
+        except Exception:
+            total_uploads = 0
+            avg = 0.0
+        # history (latest 8)
+        try:
+            if use_mongo and collection is not None:
+                history_docs = list(collection.find({}, {"_id": 0}).sort("timestamp", -1).limit(8))
+            else:
+                history_docs = list(reversed(in_memory_data))[-8:]
+        except Exception:
+            history_docs = []
+        payload = {"latest": latest, "stats": {"total_uploads": total_uploads, "avg_severity": avg}, "history": history_docs}
+        _dashboard_cache["data"] = payload
+        _dashboard_cache["ts"] = now
+        return jsonify(payload)
+
 # ----- Routes -----
 @app.route('/')
 def index():
@@ -353,6 +397,11 @@ def upload():
         "timestamp": timestamp,
         "pesticide_recommendation": pesticide_reco
     })
+
+    # clear dashboard cache to ensure fresh results returned immediately after an upload
+    with _dashboard_lock:
+        _dashboard_cache["ts"] = 0
+        _dashboard_cache["data"] = None
 
     # return rich analysis
     response = {
